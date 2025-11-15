@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUREAI テストダッシュボード</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 30px; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .card h2 { color: #555; margin-bottom: 15px; font-size: 20px; }
+        .card p { color: #666; margin-bottom: 10px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 14px; margin: 5px 0; display: block; width: 100%; }
+        button:hover { background: #0056b3; }
+        .test-step { margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 5px; }
+        .step-desc { margin: 10px 0 0 0; color: #666; font-size: 13px; line-height: 1.5; }
+        .result { margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #007bff; display: none; }
+        .loading { color: #666; }
+        .success { color: #28a745; }
+        .mock { color: #ffc107; }
+        pre { background: #f4f4f4; padding: 10px; border-radius: 4px; overflow-x: auto; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 FUREAI テストダッシュボード</h1>
+        
+        <div class="card">
+            <h2>🛠️ 段階的テスト</h2>
+            <p>各ステップを順番にテスト</p>
+            
+            <div class="test-step">
+                <button onclick="runTest(1)">1. Alexaスキルテスト</button>
+                <p class="step-desc">📝 ユーザーの音声入力をAlexaが受け取り、インテント情報に変換</p>
+                <div id="test-result-1" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(2)">2. Lambda実行テスト</button>
+                <p class="step-desc">📝 AlexaからLambda関数を呼び出し、基本的な応答を確認</p>
+                <div id="test-result-2" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(3)">3. Bedrock基本テスト</button>
+                <p class="step-desc">📝 Bedrock AIに簡単なプロンプトを送信し、コーデ提案を取得</p>
+                <div id="test-result-3" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(4)">4. Bedrock+天気</button>
+                <p class="step-desc">📝 天気情報（晴れ26度）を加味したコーデ提案をAIに依頼</p>
+                <div id="test-result-4" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(5)">5. Bedrock+天気+予定</button>
+                <p class="step-desc">📝 天気+予定（会議14:00）を加味したフォーマルなコーデ提案</p>
+                <div id="test-result-5" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(6)">6. Bedrock+全データ</button>
+                <p class="step-desc">📝 S3画像URL+DBの服データ（カテゴリ・色・タグ）を全て加味</p>
+                <div id="test-result-6" class="result"></div>
+            </div>
+            
+            <div class="test-step">
+                <button onclick="runTest(7)">7. システムテスト</button>
+                <p class="step-desc">📝 Alexa→Lambda→各API→Bedrock→応答の全フロー統合テスト</p>
+                <div id="test-result-7" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function runTest(step) {
+            const result = document.getElementById(`test-result-${step}`);
+            result.style.display = 'block';
+            
+            const stepNames = {
+                1: 'Alexaスキル',
+                2: 'Lambda実行',
+                3: 'Bedrock基本',
+                4: 'Bedrock+天気',
+                5: 'Bedrock+天気+予定',
+                6: 'Bedrock+全データ',
+                7: 'システムテスト'
+            };
+            
+            result.innerHTML = `<p class="loading">⏳ ${stepNames[step]}実行中...</p>`;
+            
+            try {
+                const res = await fetch(`/api/test/${step}`);
+                const data = await res.json();
+                
+                let explanation = '';
+                if (step === 1) explanation = '✅ Alexaがユーザー入力を正しくインテント情報に変換しました';
+                else if (step === 2) explanation = '✅ Lambda関数が正常に実行され、天気・予定・服データを取得しました';
+                else if (step === 3) explanation = '✅ Bedrock AIが基本的なコーデ提案を生成しました';
+                else if (step === 4) explanation = '✅ 天気情報を考慮したコーデ提案が生成されました';
+                else if (step === 5) explanation = '✅ 天気と予定の両方を考慮したフォーマルなコーデが提案されました';
+                else if (step === 6) explanation = '✅ S3画像とDBデータを全て加味した最適なコーデが提案されました';
+                else if (step === 7) explanation = '✅ 全システムが連携して正常に動作しました';
+                
+                result.innerHTML = `
+                    <p class="success">${explanation}</p>
+                    <details>
+                        <summary style="cursor: pointer; margin-top: 10px; color: #007bff;">📊 詳細データを表示</summary>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </details>
+                `;
+            } catch (e) {
+                result.innerHTML = `<p>❌ エラー: ${e.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

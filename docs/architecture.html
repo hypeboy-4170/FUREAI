@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUREAI アーキテクチャ図</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .mermaid {
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🎤 FUREAI システムアーキテクチャ</h1>
+        <div class="mermaid">
+            flowchart TD
+            U[ユーザー<br />「服ちょうだい」] -->|音声| Alexa[Amazon Alexa<br />Alexa Skill]
+
+            Alexa -->|インテント情報| Lambda[AWS Lambda<br />メイン処理]
+
+            %% データ収集
+            Lambda -->|服データ取得| DDB[(服データ)]
+            Lambda -->|画像URL取得| S3[S3<br />服画像ストレージ]
+            Lambda -->|天気・予定取得| Ext[外部API<br />天気 / 予定]
+
+            DDB -->|服リスト| Lambda
+            S3 -->|画像URL| Lambda
+            Ext -->|天気・予定情報| Lambda
+
+            %% AI処理
+            Lambda -->|全データを送信| Bedrock[Amazon Bedrock<br />AIエージェント]
+            Bedrock -->|コーデ提案| Lambda
+
+        </div>
+    </div>
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+    </script>
+</body>
+
+</html>

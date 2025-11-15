@@ -1,0 +1,17 @@
+flowchart TD
+    U[ユーザー<br/>「服ちょうだい」] -->|音声| Alexa[Amazon Alexa<br/>Alexa Skill]
+
+    Alexa -->|インテント情報| Lambda[AWS Lambda<br/>メイン処理]
+
+    %% データ収集
+    Lambda -->|服データ取得| DDB[(服データ)]
+    Lambda -->|画像URL取得| S3[S3<br/>服画像ストレージ]
+    Lambda -->|天気・予定取得| Ext[外部API<br/>天気 / 予定]
+    
+    DDB -->|服リスト| Lambda
+    S3 -->|画像URL| Lambda
+    Ext -->|天気・予定情報| Lambda
+
+    %% AI処理
+    Lambda -->|全データを送信| Bedrock[Amazon Bedrock<br/>AIエージェント]
+    Bedrock -->|コーデ提案| Lambda

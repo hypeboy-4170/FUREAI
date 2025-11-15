@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 環境変数
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# AWS
+*.pem
+*.key
+
+# ログ
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# テスト
+.pytest_cache/
+.coverage
+
+# 一時ファイル
+*.tmp
+*.bak
