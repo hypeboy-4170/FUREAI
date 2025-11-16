@@ -1,0 +1,37 @@
+# 環境変数
+.env
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ログ
+*.log
+
+# テスト出力
+response.json
+
+# Google認証
+credentials.json
+token.json
+
+# AWS
+.aws/
+
+# OS
+.DS_Store
+Thumbs.db

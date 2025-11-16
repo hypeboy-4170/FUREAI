@@ -1,0 +1,16 @@
+flowchart TD
+    U["ユーザー<br/>「今日のコーデえらんで」"] -->|音声| Alexa["Amazon Alexa<br/>Alexa Skill"]
+    Alexa -->|インテント情報| Lambda["AWS Lambda<br/>メイン処理"]
+    
+    Lambda -->|服データ取得| DDB[("DynamoDB<br/>服データ・履歴")]
+    Lambda -->|画像URL取得| S3["S3<br/>服画像ストレージ"]
+    Lambda -->|天気・予定取得| Ext["外部API<br/>天気 / 予定"]
+    
+    DDB -->|服リスト| Lambda
+    S3 -->|画像URL| Lambda
+    Ext -->|天気・予定情報| Lambda
+    
+    Lambda -->|全データを送信| Bedrock["Amazon Bedrock<br/>Claude 3.5"]
+    Bedrock -->|コーデ提案| Lambda
+    Lambda -->|音声応答| Alexa
+    Alexa -->|音声| U
