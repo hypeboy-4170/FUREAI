@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUREAI - コーディネート提案ツール</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-bottom: 20px; }
+        h2 { color: #333; font-size: 18px; margin-top: 30px; margin-bottom: 15px; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+        textarea { font-family: sans-serif; min-height: 80px; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        #result { margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 4px; display: none; }
+        .item { margin-bottom: 15px; padding: 10px; background: white; border-left: 4px solid #007bff; }
+        .item-title { font-weight: bold; color: #007bff; }
+        .item-reason { color: #666; margin-top: 5px; }
+        .comment { margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 4px; }
+        .error { background: #ffe7e7; border-left-color: #dc3545; }
+        .loading { text-align: center; color: #666; }
+        .note { background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 12px; color: #856404; }
+        .test-section { background: #f0f8ff; padding: 15px; border-radius: 4px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 FUREAI</h1>
+        <p style="color: #666; margin-bottom: 20px;">AIがあなたの予定と天気に合わせて、最適なコーディネートを提案します</p>
+        
+        <div class="note">
+            <strong>設定方法:</strong> ./scripts/configure_web.sh を実行して config.js を自動生成してください。<br>
+            config.jsがない場合はモックデータで動作します。
+        </div>
+        
+        <!-- 単体テスト -->
+        <h2>🧪 単体テスト</h2>
+        
+        <div class="test-section">
+            <h3 style="margin-bottom: 10px;">1. Bedrock疎通確認</h3>
+            <div class="input-group">
+                <label>AIに質問</label>
+                <textarea id="freeQuestion" placeholder="例: こんにちは"></textarea>
+            </div>
+            <button onclick="askFreeQuestion()" style="background: #6f42c1;">Bedrock疎通確認</button>
+        </div>
+        
+        <div class="test-section">
+            <h3 style="margin-bottom: 10px;">2. S3画像アップロード</h3>
+            <input type="text" id="itemId" placeholder="itemId (例: tops_001)" style="margin-bottom: 10px;">
+            <input type="file" id="clothingImage" accept=".jpg,.jpeg,.png" onchange="previewImage()" style="margin-bottom: 10px;">
+            <div id="imagePreview" style="margin-top: 10px; display: none;">
+                <img id="previewImg" style="max-width: 100%; border-radius: 4px; border: 2px solid #ddd;">
+            </div>
+            <button onclick="uploadToS3()" style="background: #17a2b8;">S3にアップロード</button>
+            <div id="uploadStatus" style="margin-top: 10px; display: none;"></div>
+        </div>
+        
+        <!-- システムテスト -->
+        <h2>🎯 システムテスト</h2>
+        
+        <div class="test-section">
+            <h3 style="margin-bottom: 10px;">テストシナリオ選択</h3>
+            <div class="input-group">
+                <label>シナリオ</label>
+                <select id="testScenario" onchange="loadScenario()">
+                    <option value="">-- カスタム入力 --</option>
+                    <option value="scenario1">夏の商談（30度・晴れ）</option>
+                    <option value="scenario2">冬のカジュアル（5度・曇り）</option>
+                    <option value="scenario3">春のビジネスカジュアル（18度・晴れ）</option>
+                    <option value="scenario4">雨の日の外出（15度・雨）</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label>予定</label>
+                <input type="text" id="schedule" placeholder="例: クライアント訪問">
+            </div>
+            
+            <div class="input-group">
+                <label>気温: <span id="tempValue">20</span>℃</label>
+                <input type="range" id="temp" min="-10" max="40" value="20" oninput="document.getElementById('tempValue').textContent=this.value">
+            </div>
+            
+            <div class="input-group">
+                <label>天候</label>
+                <select id="condition">
+                    <option value="sunny">☀️ 晴れ</option>
+                    <option value="cloudy" selected>☁️ 曇り</option>
+                    <option value="rainy">🌧️ 雨</option>
+                    <option value="snowy">❄️ 雪</option>
+                </select>
+            </div>
+            
+            <button onclick="getCoordinate()">コーディネート提案（手動入力）</button>
+        </div>
+        
+        <div class="test-section">
+            <h3 style="margin-bottom: 10px;">OpenWeatherMap API連携</h3>
+            <div class="input-group">
+                <label>場所</label>
+                <input type="text" id="weatherLocation" placeholder="例: Tokyo" value="Tokyo">
+            </div>
+            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">※ 現在の天気を自動取得</p>
+            <button onclick="getCoordinateWithWeatherAPI()" style="background: #ff6b6b;">天気APIで提案</button>
+        </div>
+        
+        <div class="test-section">
+            <h3 style="margin-bottom: 10px;">Googleカレンダー連携</h3>
+            <div class="input-group">
+                <label>場所</label>
+                <input type="text" id="calendarLocation" placeholder="例: Tokyo" value="Tokyo">
+            </div>
+            <p style="color: #666; font-size: 12px; margin-bottom: 10px;">※ 本日の予定 + 現在の天気を自動取得</p>
+            <button onclick="getCoordinateWithCalendar()" style="background: #28a745;">カレンダー連携で提案</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script src="config.js" onerror="window.LAMBDA_URLS = {}"></script>
+    <script>
+        // LAMBDA_URLsはconfig.jsから読み込まれます（ない場合は空オブジェクト）
+        if (typeof LAMBDA_URLS === 'undefined') {
+            window.LAMBDA_URLS = {};
+        }
+        
+        const scenarios = {
+            scenario1: { schedule: '重要な商談', temp: 30, condition: 'sunny' },
+            scenario2: { schedule: '友人とランチ', temp: 5, condition: 'cloudy' },
+            scenario3: { schedule: '社内ミーティング', temp: 18, condition: 'sunny' },
+            scenario4: { schedule: '外出', temp: 15, condition: 'rainy' }
+        };
+        
+        function loadScenario() {
+            const selected = document.getElementById('testScenario').value;
+            if (!selected) return;
+            
+            const scenario = scenarios[selected];
+            document.getElementById('schedule').value = scenario.schedule;
+            document.getElementById('temp').value = scenario.temp;
+            document.getElementById('tempValue').textContent = scenario.temp;
+            document.getElementById('condition').value = scenario.condition;
+        }
+        
+        async function askFreeQuestion() {
+            const question = document.getElementById('freeQuestion').value.trim();
+            if (!question) return alert('質問を入力してください');
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">Bedrock疎通確認中...</div>';
+            
+            try {
+                if (!LAMBDA_URLS || !LAMBDA_URLS.bedrock) {
+                    throw new Error('config.jsが設定されていません。./scripts/configure_web.sh を実行してください。');
+                }
+                
+                const response = await fetch(LAMBDA_URLS.bedrock, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        body: JSON.stringify({
+                            action: 'bedrockTest',
+                            question: question
+                        })
+                    })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+                
+                resultDiv.innerHTML = `
+                    <div class="comment">
+                        <strong>✅ Bedrock疎通成功！</strong><br><br>
+                        <strong>質問:</strong> ${question}<br><br>
+                        <strong>🤖 AIの回答:</strong><br>
+                        ${result.answer.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="item error"><div class="item-title">エラー</div><div class="item-reason">${error.message}</div></div>`;
+            }
+        }
+        
+        function previewImage() {
+            const file = document.getElementById('clothingImage').files[0];
+            if (!file) {
+                document.getElementById('imagePreview').style.display = 'none';
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function uploadToS3() {
+            const itemId = document.getElementById('itemId').value.trim();
+            const file = document.getElementById('clothingImage').files[0];
+            
+            if (!itemId) return alert('itemIdを入力してください（例: tops_001）');
+            if (!file) return alert('画像ファイルを選択してください');
+            
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.innerHTML = '<div class="loading">アップロード中...</div>';
+            
+            try {
+                if (!LAMBDA_URLS || !LAMBDA_URLS.presigned) {
+                    throw new Error('config.jsが設定されていません。./scripts/configure_web.sh を実行してください。');
+                }
+                
+                const presignedResponse = await fetch(LAMBDA_URLS.presigned, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        body: JSON.stringify({
+                            action: 'getPresignedUrl',
+                            itemId: itemId,
+                            fileType: file.type
+                        })
+                    })
+                });
+                
+                const presignedData = await presignedResponse.json();
+                const uploadUrl = presignedData.uploadUrl || presignedData.url;
+                
+                if (!uploadUrl) {
+                    throw new Error('Presigned URLの取得に失敗しました');
+                }
+                
+                const uploadResponse = await fetch(uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {'Content-Type': file.type}
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('S3アップロードに失敗しました');
+                }
+                
+                statusDiv.innerHTML = `
+                    <div class="comment">
+                        <strong>✅ アップロード成功！</strong><br>
+                        itemId: ${itemId}<br>
+                        S3パス: uploads/${itemId}.jpg
+                    </div>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="item error">
+                        <div class="item-title">エラー</div>
+                        <div class="item-reason">${error.message}</div>
+                    </div>
+                `;
+            }
+        }
+        
+        async function getCoordinate() {
+            const schedule = document.getElementById('schedule').value || '通常の日';
+            const temp = parseInt(document.getElementById('temp').value);
+            const condition = document.getElementById('condition').value;
+            const weather = `気温${temp}度 ${getConditionText(condition)}`;
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">提案を生成中...</div>';
+            
+            try {
+                const response = await invokeLambda({
+                    schedule: schedule,
+                    weather: weather
+                });
+                
+                displayResult(response, { schedule, weather });
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="item error"><div class="item-title">エラー</div><div class="item-reason">${error.message}</div></div>`;
+            }
+        }
+        
+        async function invokeLambda(payload) {
+            if (LAMBDA_URLS && LAMBDA_URLS.coordinate) {
+                const response = await fetch(LAMBDA_URLS.coordinate, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({body: JSON.stringify(payload)})
+                });
+                return await response.json();
+            }
+            // config.jsがない場合はモックデータで動作
+            console.log('⚠️ config.jsが設定されていないため、モックデータで動作します');
+            return mockResponse(payload);
+        }
+        
+        function getConditionText(condition) {
+            const map = { 'sunny': '晴れ', 'cloudy': '曇り', 'rainy': '雨', 'snowy': '雪' };
+            return map[condition] || '曇り';
+        }
+        
+        async function getCoordinateWithWeatherAPI() {
+            const location = document.getElementById('weatherLocation').value || 'Tokyo';
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">天気APIから情報取得中...</div>';
+            
+            try {
+                if (!LAMBDA_URLS || !LAMBDA_URLS.weather) {
+                    throw new Error('config.jsが設定されていません。./scripts/configure_web.sh を実行してください。');
+                }
+                
+                const response = await fetch(LAMBDA_URLS.weather, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        body: JSON.stringify({
+                            action: 'weatherAPI',
+                            location: location
+                        })
+                    })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+                
+                displayWeatherResult(result, location);
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="item error"><div class="item-title">エラー</div><div class="item-reason">${error.message}</div></div>`;
+            }
+        }
+        
+        async function getCoordinateWithCalendar() {
+            const location = document.getElementById('calendarLocation').value || 'Tokyo';
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<div class="loading">本日の予定・天気取得中...</div>';
+            
+            try {
+                if (!LAMBDA_URLS || !LAMBDA_URLS.calendar) {
+                    throw new Error('config.jsが設定されていません。./scripts/configure_web.sh を実行してください。');
+                }
+                
+                const response = await fetch(LAMBDA_URLS.calendar, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        body: JSON.stringify({
+                            action: 'calendar',
+                            location: location
+                        })
+                    })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data.body;
+                
+                displayCalendarResult(result, location);
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="item error"><div class="item-title">エラー</div><div class="item-reason">${error.message}</div></div>`;
+            }
+        }
+        
+        function mockResponse(payload) {
+            const weather = payload.weather || '気温20度';
+            const tempMatch = weather.match(/(\d+)/);
+            const temp = tempMatch ? parseInt(tempMatch[1]) : 20;
+            const isCold = temp < 15;
+            const isHot = temp > 25;
+            
+            return {
+                statusCode: 200,
+                body: JSON.stringify({
+                    tops: {
+                        itemId: isHot ? "tops_003" : isCold ? "tops_002" : "tops_001",
+                        reason: isHot ? "グレーTシャツは暑い日に涼しく快適" : isCold ? "黒ニットは寒い日に暖かい" : "茶シャツはオールマイティ"
+                    },
+                    pants: {
+                        itemId: payload.schedule.includes("訪問") || payload.schedule.includes("商談") ? "pants_002" : "pants_001",
+                        reason: payload.schedule.includes("訪問") ? "黒スラックスはフォーマルに最適" : "ベージュチノパンはビジネスカジュアルに最適"
+                    },
+                    outer: {
+                        itemId: isCold ? "outer_002" : temp < 20 ? "outer_001" : null,
+                        reason: isCold ? "ダウンジャケットで防寒" : temp < 20 ? "トレンチコートで適温" : "暖かいのでアウター不要"
+                    },
+                    overall_comment: `${payload.schedule}、${weather}に最適なコーディネートです`
+                })
+            };
+        }
+        
+        function displayResult(response, context) {
+            const resultDiv = document.getElementById('result');
+            const body = typeof response.body === 'string' ? JSON.parse(response.body) : response.body;
+            
+            let html = `
+                <div class="comment">
+                    <strong>📋 入力情報</strong><br>
+                    予定: ${context.schedule}<br>
+                    天気: ${context.weather}
+                </div>
+            `;
+            
+            if (body.tops) {
+                html += `<div class="item">
+                    <div class="item-title">トップス: ${body.tops.itemId}</div>
+                    <div class="item-reason">${body.tops.reason}</div>
+                </div>`;
+            }
+            
+            if (body.pants) {
+                html += `<div class="item">
+                    <div class="item-title">ボトムス: ${body.pants.itemId}</div>
+                    <div class="item-reason">${body.pants.reason}</div>
+                </div>`;
+            }
+            
+            if (body.outer && body.outer.itemId) {
+                html += `<div class="item">
+                    <div class="item-title">アウター: ${body.outer.itemId}</div>
+                    <div class="item-reason">${body.outer.reason}</div>
+                </div>`;
+            }
+            
+            if (body.overall_comment) {
+                html += `<div class="comment">${body.overall_comment}</div>`;
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        function displayWeatherResult(result, location) {
+            const resultDiv = document.getElementById('result');
+            
+            let html = `
+                <div class="comment">
+                    <strong>🌡️ 天気情報 (${location})</strong><br>
+                    気温: ${result.weather.temp}度<br>
+                    天候: ${result.weather.condition}<br>
+                    湿度: ${result.weather.humidity}%<br>
+                    ソース: ${result.weather.source === 'api' ? 'OpenWeatherMap API' : 'モックデータ'}
+                </div>
+            `;
+            
+            const coord = result.coordinate;
+            if (coord.tops) {
+                html += `<div class="item">
+                    <div class="item-title">トップス: ${coord.tops.itemId}</div>
+                    <div class="item-reason">${coord.tops.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.pants) {
+                html += `<div class="item">
+                    <div class="item-title">ボトムス: ${coord.pants.itemId}</div>
+                    <div class="item-reason">${coord.pants.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.outer && coord.outer.itemId) {
+                html += `<div class="item">
+                    <div class="item-title">アウター: ${coord.outer.itemId}</div>
+                    <div class="item-reason">${coord.outer.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.overall_comment) {
+                html += `<div class="comment">${coord.overall_comment}</div>`;
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        function displayCalendarResult(result, location) {
+            const resultDiv = document.getElementById('result');
+            const today = new Date().toLocaleDateString('ja-JP');
+            
+            let html = `
+                <div class="comment">
+                    <strong>📅 本日の予定 (${today})</strong><br>
+            `;
+            
+            if (result.schedule && result.schedule.events) {
+                result.schedule.events.forEach(event => {
+                    html += `${event.time}: ${event.summary}`;
+                    if (event.location) html += ` @ ${event.location}`;
+                    html += '<br>';
+                });
+                html += `ソース: ${result.schedule.source === 'api' ? 'Google Calendar' : 'モックデータ'}<br>`;
+            }
+            
+            html += `</div>
+                <div class="comment">
+                    <strong>🌡️ 現在の天気 (${location})</strong><br>
+                    気温: ${result.weather.temp}度<br>
+                    天候: ${result.weather.condition}
+                </div>
+            `;
+            
+            const coord = result.coordinate;
+            if (coord.tops) {
+                html += `<div class="item">
+                    <div class="item-title">トップス: ${coord.tops.itemId}</div>
+                    <div class="item-reason">${coord.tops.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.pants) {
+                html += `<div class="item">
+                    <div class="item-title">ボトムス: ${coord.pants.itemId}</div>
+                    <div class="item-reason">${coord.pants.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.outer && coord.outer.itemId) {
+                html += `<div class="item">
+                    <div class="item-title">アウター: ${coord.outer.itemId}</div>
+                    <div class="item-reason">${coord.outer.reason}</div>
+                </div>`;
+            }
+            
+            if (coord.overall_comment) {
+                html += `<div class="comment">${coord.overall_comment}</div>`;
+            }
+            
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
