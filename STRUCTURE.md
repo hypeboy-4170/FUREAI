@@ -7,8 +7,6 @@ FUREAI/
 ├── scripts/
 │   ├── setup_all.sh                 # DynamoDB・IAM・Lambda一括セットアップ
 │   └── deploy_lambda.sh             # Lambda関数デプロイ
-├── iam/
-│   └── lambda-execution-policy.json # Lambda実行ロールのポリシー
 ├── SETUP.md                         # セットアップ手順
 └── STRUCTURE.md                     # このファイル
 ```
