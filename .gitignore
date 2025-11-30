@@ -1,37 +1,48 @@
 # 環境変数
 .env
+.env.local
+
+# Lambda Function URLs（個人設定）
+web/config.js
+
+# AWS認証情報
+.aws/
+credentials
 
 # Python
-*.pyc
 __pycache__/
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
 *.so
-*.egg
-*.egg-info/
-dist/
-build/
+.Python
+venv/
+env/
+ENV/
+
+# Lambda デプロイパッケージ
+*.zip
+lambda-package/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# ログ
-*.log
-
-# テスト出力
-response.json
-
-# Google認証
-credentials.json
-token.json
-
-# AWS
-.aws/
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+
+# ログ
+*.log
+
+# テスト
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 一時ファイル
+tmp/
+temp/
+*.tmp

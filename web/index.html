@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FUREAI - コーディネート提案ツール</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-bottom: 10px; }
+        h2 { color: #333; font-size: 18px; margin-top: 30px; margin-bottom: 15px; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+        .test-section { background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px; border-left: 4px solid #007bff; }
+        .test-section h3 { font-size: 16px; margin-bottom: 10px; color: #007bff; }
+        button { width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #0056b3; }
+        button.success { background: #28a745; }
+        button.success:hover { background: #218838; }
+        button.warning { background: #ffc107; color: #000; }
+        button.warning:hover { background: #e0a800; }
+        button.danger { background: #dc3545; }
+        button.danger:hover { background: #c82333; }
+        button.full { background: #6f42c1; font-size: 16px; font-weight: bold; }
+        button.full:hover { background: #5a32a3; }
+        #result { margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 4px; display: none; }
+        .item { margin-bottom: 15px; padding: 10px; background: white; border-left: 4px solid #007bff; }
+        .item-title { font-weight: bold; color: #007bff; }
+        .item-reason { color: #666; margin-top: 5px; font-size: 14px; }
+        .comment { margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 4px; }
+        .error { background: #ffe7e7; border-left-color: #dc3545; }
+        .loading { text-align: center; color: #666; padding: 20px; }
+        .note { background: #fff3cd; padding: 10px; border-radius: 4px; margin-bottom: 20px; font-size: 12px; color: #856404; }
+        input, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; margin-top: 5px; }
+        textarea { font-family: sans-serif; min-height: 60px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 FUREAI</h1>
+        <p style="color: #666; margin-bottom: 20px;">AIがあなたの予定と天気に合わせて、最適なコーディネートを提案します</p>
+        
+        <div class="note">
+            <strong>設定:</strong> config.jsにLambda関数URLを設定してください
+        </div>
+        
+        <!-- 単体テスト -->
+        <h2>🧪 単体テスト</h2>
+        
+        <div class="test-section">
+            <h3>1. Bedrock疎通テスト</h3>
+            <textarea id="bedrockQuestion" placeholder="例: こんにちは"></textarea>
+            <button onclick="testBedrock()">Bedrockテスト</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. DynamoDB疎通テスト（DBデータでコーデ提案）</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">DBに登録されている服データだけでコーデ提案</p>
+            <button onclick="testDB()" class="success">DBテスト</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. S3疎通テスト（画像→Bedrock分析→DB登録→コーデ提案）</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">S3アップロード → Bedrockで画像分析 → DB登録 → AIコーデ提案</p>
+            <input type="file" id="s3Image" accept="image/*" style="margin-top: 5px;">
+            <button onclick="testS3()" class="warning">S3テスト（全工程）</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 天気API疎通テスト</h3>
+            <input type="text" id="weatherLoc" placeholder="場所 (例: Tokyo)" value="Tokyo">
+            <button onclick="testWeather()" class="danger">天気テスト</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. 予定API疎通テスト</h3>
+            <button onclick="testSchedule()" class="success">予定テスト</button>
+        </div>
+        
+        <!-- 全体テスト -->
+        <h2>🎯 全体統合テスト</h2>
+        
+        <div class="test-section" style="border-left-color: #6f42c1;">
+            <h3 style="color: #6f42c1;">フルコーディネート提案</h3>
+            <p style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                S3 + DB + 天気 + 予定 → Bedrock → HTML表示
+            </p>
+            <input type="text" id="fullUserId" placeholder="ユーザーID (例: user001)" value="user001">
+            <input type="text" id="fullLocation" placeholder="場所 (例: Tokyo)" value="Tokyo">
+            <button onclick="testFull()" class="full">🚀 全体テスト実行</button>
+        </div>
+        
+        <div id="result"></div>
+    </div>
+
+    <script src="config.js" onerror="window.LAMBDA_URLS = {}"></script>
+    <script>
+        if (typeof LAMBDA_URLS === 'undefined') {
+            window.LAMBDA_URLS = {};
+        }
+        
+        function showResult(html) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = html;
+        }
+        
+        function showLoading(message) {
+            showResult(`<div class="loading">${message}</div>`);
+        }
+        
+        function showError(error) {
+            showResult(`<div class="item error"><div class="item-title">❌ エラー</div><div class="item-reason">${error}</div></div>`);
+        }
+        
+        async function testBedrock() {
+            const question = document.getElementById('bedrockQuestion').value.trim() || 'こんにちは';
+            showLoading('Bedrock疎通確認中...');
+            
+            try {
+                if (!LAMBDA_URLS.bedrock) throw new Error('config.jsにbedrockのURLを設定してください');
+                
+                const response = await fetch(LAMBDA_URLS.bedrock, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ question })
+                });
+                
+                const text = await response.text();
+                console.log('Response text:', text);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                }
+                
+                const data = JSON.parse(text);
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                showResult(`
+                    <div class="comment">
+                        <strong>✅ Bedrock疎通成功</strong><br><br>
+                        <strong>質問:</strong> ${question}<br><br>
+                        <strong>回答:</strong><br>${result.answer || JSON.stringify(result)}
+                    </div>
+                `);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        async function testDB() {
+            showLoading('DBデータ取得 → AIコーデ提案中...');
+            
+            try {
+                if (!LAMBDA_URLS.db) throw new Error('config.jsにdbのURLを設定してください');
+                
+                const response = await fetch(LAMBDA_URLS.db, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                let itemsHtml = result.dbItems.map(item => 
+                    `<div style="padding: 5px; background: white; margin: 5px 0; border-radius: 3px;">
+                        ${item.itemId}: ${item.category} / ${item.color} / ${item.season} / ${item.formality}
+                    </div>`
+                ).join('');
+                
+                showResult(`
+                    <div class="comment">
+                        <strong>✅ DBテスト成功</strong><br><br>
+                        <strong>💾 DBアイテム (${result.dbItems.length}件):</strong><br>
+                        ${itemsHtml}
+                    </div>
+                    <div class="comment">
+                        <strong>🤖 AIコーデ提案:</strong><br><br>
+                        ${result.recommendation.replace(/\n/g, '<br>')}
+                    </div>
+                `);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        async function testS3() {
+            const fileInput = document.getElementById('s3Image');
+            if (!fileInput.files.length) {
+                alert('画像を選択してください');
+                return;
+            }
+            
+            showLoading('S3アップロード → Bedrock分析 → DB登録 → コーデ提案中...');
+            
+            try {
+                if (!LAMBDA_URLS.s3) throw new Error('config.jsにs3のURLを設定してください');
+                
+                const imageData = await fileToBase64(fileInput.files[0]);
+                
+                const response = await fetch(LAMBDA_URLS.s3, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ imageData })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                showResult(`
+                    <div class="comment">
+                        <strong>✅ S3テスト成功（全工程完了）</strong>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">📦 1. S3アップロード</div>
+                        <div class="item-reason">${result.s3Upload.bucket} / ${result.s3Upload.key}</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">🔍 2. Bedrock画像分析</div>
+                        <div class="item-reason">
+                            カテゴリ: ${result.imageAnalysis.category}<br>
+                            色: ${result.imageAnalysis.color}<br>
+                            季節: ${result.imageAnalysis.season}<br>
+                            フォーマル度: ${result.imageAnalysis.formality}
+                        </div>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">💾 3. DynamoDB登録</div>
+                        <div class="item-reason">itemId: ${result.dbRegistration.itemId}</div>
+                    </div>
+                    <div class="comment">
+                        <strong>🤖 4. AIコーデ提案:</strong><br><br>
+                        ${result.recommendation.replace(/\n/g, '<br>')}
+                    </div>
+                `);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+        
+        async function testWeather() {
+            const location = document.getElementById('weatherLoc').value || 'Tokyo';
+            showLoading('天気API確認中...');
+            
+            try {
+                if (!LAMBDA_URLS.weather) throw new Error('config.jsにweatherのURLを設定してください');
+                
+                const response = await fetch(LAMBDA_URLS.weather, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ body: JSON.stringify({ location }) })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                showResult(`
+                    <div class="comment">
+                        <strong>✅ 天気API疎通成功</strong><br><br>
+                        <strong>場所:</strong> ${location}<br>
+                        <strong>気温:</strong> ${result.temp || result.weather?.temp}度<br>
+                        <strong>天候:</strong> ${result.condition || result.weather?.condition}<br>
+                        <strong>湿度:</strong> ${result.humidity || result.weather?.humidity}%
+                    </div>
+                `);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        async function testSchedule() {
+            showLoading('予定API確認中...');
+            
+            try {
+                if (!LAMBDA_URLS.calendar) throw new Error('config.jsにcalendarのURLを設定してください');
+                
+                const response = await fetch(LAMBDA_URLS.calendar, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ body: JSON.stringify({}) })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                let eventsHtml = '';
+                if (result.schedule?.events) {
+                    result.schedule.events.forEach(e => {
+                        eventsHtml += `${e.time}: ${e.summary}<br>`;
+                    });
+                }
+                
+                showResult(`
+                    <div class="comment">
+                        <strong>✅ 予定API疎通成功</strong><br><br>
+                        <strong>本日の予定:</strong><br>${eventsHtml || '予定なし'}
+                    </div>
+                `);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+        
+        async function testFull() {
+            const userId = document.getElementById('fullUserId').value || 'user001';
+            const location = document.getElementById('fullLocation').value || 'Tokyo';
+            
+            showLoading('🚀 全体統合テスト実行中...<br>S3 → DB → 天気 → 予定 → Bedrock');
+            
+            try {
+                if (!LAMBDA_URLS.full) throw new Error('config.jsにfullのURLを設定してください');
+                
+                const response = await fetch(LAMBDA_URLS.full, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ userId, location })
+                });
+                
+                const data = await response.json();
+                const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
+                
+                let html = '<div class="comment"><strong>🎉 全体統合テスト成功！</strong></div>';
+                
+                // データ取得結果
+                html += `
+                    <div class="item">
+                        <div class="item-title">📦 S3データ</div>
+                        <div class="item-reason">服アイテム数: ${result.data.clothing.count}件</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">💾 DBデータ</div>
+                        <div class="item-reason">スタイル: ${result.data.user.style}</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">🌡️ 天気</div>
+                        <div class="item-reason">${result.data.weather.location}: ${result.data.weather.temp}度 ${result.data.weather.condition}</div>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">📅 予定</div>
+                        <div class="item-reason">${result.data.schedule.events.length}件の予定</div>
+                    </div>
+                `;
+                
+                // Bedrock提案
+                html += `
+                    <div class="comment">
+                        <strong>🤖 AIコーディネート提案</strong><br><br>
+                        ${result.recommendation.replace(/\n/g, '<br>')}
+                    </div>
+                `;
+                
+                showResult(html);
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+    </script>
+</body>
+</html>
