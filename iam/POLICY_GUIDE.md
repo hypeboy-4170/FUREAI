@@ -45,17 +45,6 @@
 3. JSONタブで該当ポリシーをコピペ
 4. ロールにアタッチ
 
-### AWS CLI
-```bash
-aws iam create-policy \
-  --policy-name FureaiBedrockTesterPolicy \
-  --policy-document file://bedrock-tester-policy.json
-
-aws iam attach-role-policy \
-  --role-name lambda-execution-role \
-  --policy-arn arn:aws:iam::ACCOUNT_ID:policy/FureaiBedrockTesterPolicy
-```
-
 ## 共通権限
 
 全ての関数に以下が含まれています：
