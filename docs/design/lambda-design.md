@@ -2,7 +2,16 @@
 
 ## 概要
 
-FUREAIシステムは6つのLambda関数で構成されます。
+FUREAIシステムは以下のLambda関数で構成されます。
+
+### 実装状況
+- ✅ **bedrock_tester** - 実装済み
+- 📝 **db_tester** - 設計のみ
+- 📝 **s3_tester** - 設計のみ
+- 📝 **weather_api_fetcher** - 設計のみ
+- 📝 **calendar_fetcher** - 設計のみ
+- 📝 **coordinate_recommender** - 設計のみ
+- 📝 **full_coordinator** - 設計のみ
 
 ---
 
@@ -40,7 +49,7 @@ Web (index.html)
 
 ---
 
-## 1. BedrockTester
+## 1. bedrock_tester ✅ 実装済み
 
 ### 責務
 - Bedrock単体の疎通確認
@@ -56,8 +65,7 @@ Web (index.html)
 
 ```json
 {
-  "action": "bedrockTest",
-  "question": "こんにちは。今日の天気はどうですか？"
+  "question": "こんにちは"
 }
 ```
 
@@ -65,14 +73,64 @@ Web (index.html)
 
 ```json
 {
-  "answer": "こんにちは！申し訳ございませんが、私はリアルタイムの天気情報にアクセスできません..."
+  "answer": "こんにちは！何かお手伝いできることはありますか？"
 }
 ```
 
 ### 環境変数
-- なし
+- `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
 
 ### IAM権限
+- `bedrock:InvokeModel`
+- `logs:CreateLogGroup`
+- `logs:CreateLogStream`
+- `logs:PutLogEvents`
+
+### 設定
+- **タイムアウト**: 30秒
+- **メモリ**: 128MB
+- **ランタイム**: Python 3.12
+- **関数URL**: 有効（認証なし、CORS有効）
+
+---
+
+## 2. db_tester 📝 設計のみ
+
+### 責務
+- DynamoDBデータ取得
+- Bedrockでコーディネート提案
+
+### ファイル
+`lambda/db_tester.py`
+
+### トリガー
+- Lambda Function URL (HTTPS)
+
+### 入力例
+
+```json
+{}
+```
+
+### 出力例
+
+```json
+{
+  "dbItems": [
+    {"itemId": "tops_001", "category": "tops", "color": "白"},
+    {"itemId": "pants_001", "category": "pants", "color": "黒"}
+  ],
+  "recommendation": "白シャツと黒パンツの組み合わせがおすすめです"
+}
+```
+
+### 環境変数
+- `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- `CLOTHING_TABLE`: `ClothingItems`
+
+### IAM権限
+- `dynamodb:Scan`
+- `dynamodb:GetItem`
 - `bedrock:InvokeModel`
 - `logs:*`
 
@@ -83,14 +141,16 @@ Web (index.html)
 
 ---
 
-## 2. PresignedUrlGenerator
+## 3. s3_tester 📝 設計のみ
 
 ### 責務
-- S3 Presigned URL生成
-- HTMLから直接S3にアップロード可能にする
+- 画像アップロード
+- Bedrockで画像分析
+- DynamoDB登録
+- コーディネート提案
 
 ### ファイル
-`lambda/presigned_url_generator.py`
+`lambda/s3_tester.py`
 
 ### トリガー
 - Lambda Function URL (HTTPS)
@@ -99,9 +159,7 @@ Web (index.html)
 
 ```json
 {
-  "action": "getPresignedUrl",
-  "itemId": "tops_001",
-  "fileType": "image/jpeg"
+  "imageData": "data:image/jpeg;base64,..."
 }
 ```
 
@@ -109,17 +167,76 @@ Web (index.html)
 
 ```json
 {
-  "uploadUrl": "https://fureai-clothing-images.s3.amazonaws.com/uploads/tops_001.jpg?X-Amz-...",
-  "s3Key": "uploads/tops_001.jpg",
-  "bucket": "fureai-clothing-images"
+  "s3Upload": {
+    "bucket": "fureai-clothing-images",
+    "key": "uploads/item_001.jpg"
+  },
+  "imageAnalysis": {
+    "category": "tops",
+    "color": "白",
+    "season": "all",
+    "formality": "business"
+  },
+  "dbRegistration": {
+    "itemId": "item_001"
+  },
+  "recommendation": "白シャツを使ったコーディネート提案"
 }
 ```
 
 ### 環境変数
-- `BUCKET_NAME`: fureai-clothing-images
+- `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- `CLOTHING_TABLE`: `ClothingItems`
+- `BUCKET_NAME`: `fureai-clothing-images`
 
 ### IAM権限
+- `s3:GetObject`
 - `s3:PutObject`
+- `dynamodb:PutItem`
+- `bedrock:InvokeModel`
+- `logs:*`
+
+### 設定
+- **タイムアウト**: 30秒
+- **メモリ**: 128MB
+- **ランタイム**: Python 3.12
+
+---
+
+## 4. weather_api_fetcher 📝 設計のみ
+
+### 責務
+- OpenWeatherMap API呼び出し
+- 天気情報取得
+
+### ファイル
+`lambda/weather_api_fetcher.py`
+
+### トリガー
+- Lambda Function URL (HTTPS)
+
+### 入力例
+
+```json
+{
+  "location": "Tokyo"
+}
+```
+
+### 出力例
+
+```json
+{
+  "temp": 20,
+  "condition": "曇り",
+  "humidity": 60
+}
+```
+
+### 環境変数
+- なし
+
+### IAM権限
 - `logs:*`
 
 ### 設定
@@ -129,70 +246,47 @@ Web (index.html)
 
 ---
 
-## 3. ImageAnalyzer
+## 5. calendar_fetcher 📝 設計のみ
 
 ### 責務
-- 画像からAIが自動でデータ生成
-- DynamoDBに自動登録
+- Googleカレンダー API呼び出し
+- 予定情報取得
 
 ### ファイル
-`lambda/image_analyzer.py`
+`lambda/calendar_fetcher.py`
 
 ### トリガー
-- S3イベント（uploads/フォルダに画像アップロード時）
+- Lambda Function URL (HTTPS)
 
-### 処理フロー
+### 入力例
 
+```json
+{}
 ```
-1. S3から画像取得
-2. Bedrockで画像分析
-   - itemName（例: 白シャツ）
-   - category（tops/pants/outer）
-   - color（white/black/brown等）
-   - style（formal/casual/business_casual）
-   - season（spring/summer/autumn/winter）
-   - warmth（warm/cool）
-3. DynamoDBに自動登録
-```
-
-### 入力
-- S3イベント（自動）
 
 ### 出力例
 
 ```json
 {
-  "itemId": "tops_001",
-  "data": {
-    "itemName": "白シャツ",
-    "category": "tops",
-    "color": "white",
-    "style": "formal",
-    "season": ["spring", "summer", "autumn"],
-    "warmth": "cool"
-  },
-  "message": "Successfully analyzed and registered"
+  "events": [
+    {"time": "10:00", "summary": "会議"},
+    {"time": "14:00", "summary": "プレゼン"}
+  ]
 }
 ```
 
 ### 環境変数
-- `BUCKET_NAME`: fureai-clothing-images
-- `TABLE_NAME`: ClothingItems
+- なし
 
 ### IAM権限
-- `s3:GetObject`
-- `dynamodb:PutItem`
-- `bedrock:InvokeModel`
 - `logs:*`
 
 ### 設定
-- **タイムアウト**: 60秒
-- **メモリ**: 512MB
+- **タイムアウト**: 10秒
+- **メモリ**: 128MB
 - **ランタイム**: Python 3.12
 
----
-
-## 4. CoordinateRecommender
+## 6. coordinate_recommender 📝 設計のみ
 
 ### 責務
 - コーディネート提案（メイン機能）
@@ -207,8 +301,8 @@ Web (index.html)
 
 ```json
 {
-  "schedule": "クライアント訪問",
-  "weather": "気温25度 晴れ"
+  "schedule": "会社でプレゼン",
+  "weather": "15度 曇り"
 }
 ```
 
@@ -216,47 +310,37 @@ Web (index.html)
 
 ```json
 {
-  "tops": {
-    "itemId": "tops_001",
-    "reason": "茶シャツはフォーマルな印象"
-  },
-  "pants": {
-    "itemId": "pants_002",
-    "reason": "黒スラックスはフォーマルに最適"
-  },
-  "outer": {
-    "itemId": null,
-    "reason": "暖かいのでアウター不要"
-  },
-  "overall_comment": "クライアント訪問に最適なコーディネート"
+  "tops": {"itemId": "tops_001", "reason": "白シャツはフォーマル"},
+  "pants": {"itemId": "pants_001", "reason": "黒パンツは定番"},
+  "outer": {"itemId": "outer_001", "reason": "ジャケットで印象アップ"},
+  "overall_comment": "プレゼンに最適なコーディネート"
 }
 ```
 
 ### 環境変数
-- `CLOTHING_TABLE`: ClothingItems
-- `HISTORY_TABLE`: WearHistory
+- `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- `CLOTHING_TABLE`: `ClothingItems`
 
 ### IAM権限
 - `dynamodb:Scan`
-- `dynamodb:Query`
+- `dynamodb:GetItem`
 - `bedrock:InvokeModel`
 - `logs:*`
 
 ### 設定
 - **タイムアウト**: 30秒
-- **メモリ**: 256MB
+- **メモリ**: 128MB
 - **ランタイム**: Python 3.12
 
 ---
 
-## 5. WeatherAPIFetcher
+## 7. full_coordinator 📝 設計のみ
 
 ### 責務
-- OpenWeatherMap APIから現在の天気取得
-- コーディネート提案
+- S3 + DB + 天気 + 予定 → Bedrock → 統合提案
 
 ### ファイル
-`lambda/weather_api_fetcher.py`
+`lambda/full_coordinator.py`
 
 ### トリガー
 - Lambda Function URL (HTTPS)
@@ -265,7 +349,7 @@ Web (index.html)
 
 ```json
 {
-  "action": "weatherAPI",
+  "userId": "user001",
   "location": "Tokyo"
 }
 ```
@@ -274,44 +358,31 @@ Web (index.html)
 
 ```json
 {
-  "weather": {
-    "temp": 20,
-    "condition": "曇り",
-    "humidity": 60,
-    "source": "api"
+  "data": {
+    "clothing": {"count": 10},
+    "weather": {"temp": 20, "condition": "晴れ"},
+    "schedule": {"events": [{"time": "10:00", "summary": "会議"}]}
   },
-  "coordinate": {
-    "tops": {
-      "itemId": "tops_001",
-      "reason": "茶シャツは適温"
-    },
-    "pants": {
-      "itemId": "pants_001",
-      "reason": "ベージュチノパンは快適"
-    },
-    "outer": {
-      "itemId": null,
-      "reason": "アウター不要"
-    },
-    "overall_comment": "東京の天気に最適なコーディネート"
-  }
+  "recommendation": "本日のおすすめコーディネート..."
 }
 ```
 
 ### 環境変数
-- `CLOTHING_TABLE`: ClothingItems
-- `WEATHER_API_KEY`: OpenWeatherMap APIキー（オプション）
+- `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
+- `CLOTHING_TABLE`: `ClothingItems`
+- `BUCKET_NAME`: `fureai-clothing-images`
 
 ### IAM権限
+- `s3:GetObject`
 - `dynamodb:Scan`
+- `dynamodb:GetItem`
 - `bedrock:InvokeModel`
 - `logs:*`
 
 ### 設定
 - **タイムアウト**: 30秒
-- **メモリ**: 256MB
+- **メモリ**: 128MB
 - **ランタイム**: Python 3.12
-- **依存**: requests（Lambdaレイヤー必要）
 
 ---
 
@@ -343,45 +414,51 @@ Web (index.html)
 
 ### 関数別ステータスコード
 
-#### BedrockTester
+#### bedrock_tester ✅
 ```python
 200: Bedrock応答成功
 400: questionパラメータ不足
 500: Bedrock呼び出し失敗
 ```
 
-#### PresignedUrlGenerator
+#### db_tester 📝
 ```python
-200: Presigned URL生成成功
-400: itemId/fileType不足
-500: S3操作失敗
+200: DB取得・提案成功
+500: DynamoDB失敗 / Bedrock失敗
 ```
 
-#### ImageAnalyzer
+#### s3_tester 📝
 ```python
-200: 画像分析・登録成功
-500: S3取得失敗 / Bedrock失敗 / DynamoDB登録失敗
+200: S3アップロード・分析・登録・提案成功
+400: imageData不足
+500: S3失敗 / Bedrock失敗 / DynamoDB失敗
 ```
 
-#### CoordinateRecommender
+#### weather_api_fetcher 📝
+```python
+200: 天気取得成功
+400: locationパラメータ不足
+500: OpenWeatherMap API失敗
+```
+
+#### calendar_fetcher 📝
+```python
+200: 予定取得成功
+500: Google Calendar API失敗
+```
+
+#### coordinate_recommender 📝
 ```python
 200: コーディネート提案成功
 400: schedule/weather不足
-500: DynamoDB取得失敗 / Bedrock失敗
+500: DynamoDB失敗 / Bedrock失敗
 ```
 
-#### WeatherAPIFetcher
+#### full_coordinator 📝
 ```python
-200: 天気取得・提案成功
-400: locationパラメータ不足
-500: OpenWeatherMap API失敗 / DynamoDB失敗 / Bedrock失敗
-```
-
-#### CalendarFetcher
-```python
-200: 予定・天気取得・提案成功
-400: locationパラメータ不足
-500: Google Calendar API失敗 / DynamoDB失敗 / Bedrock失敗
+200: 統合提案成功
+400: userId/location不足
+500: S3/DynamoDB/Bedrock失敗
 ```
 
 ### レスポンス形式
@@ -444,13 +521,15 @@ except Exception as e:  # その他のエラー
 
 ---
 
-## 段階的テスト順序
+## 段階的実装順序
 
-1. **BedrockTester** - Bedrock単体
-2. **ImageAnalyzer** - S3 + Bedrock + DynamoDB
-3. **CoordinateRecommender** - DynamoDB + Bedrock
-4. **WeatherAPIFetcher** - OpenWeatherMap API + DynamoDB + Bedrock
-5. **CalendarFetcher** - Google Calendar API + 天気 + DynamoDB + Bedrock
+1. ✅ **bedrock_tester** - Bedrock単体（実装済み）
+2. 📝 **db_tester** - DynamoDB + Bedrock
+3. 📝 **s3_tester** - S3 + Bedrock + DynamoDB
+4. 📝 **weather_api_fetcher** - OpenWeatherMap API
+5. 📝 **calendar_fetcher** - Google Calendar API
+6. 📝 **coordinate_recommender** - メイン機能
+7. 📝 **full_coordinator** - 全体統合
 
 ---
 
@@ -470,12 +549,13 @@ except Exception as e:  # その他のエラー
 
 | 関数 | 実行時間 | メモリ | コスト/月 |
 |------|---------|--------|----------|
-| BedrockTester | 2秒 | 128MB | $0.04 |
-| PresignedUrlGenerator | 1秒 | 128MB | $0.02 |
-| ImageAnalyzer | 5秒 | 512MB | $0.42 |
-| CoordinateRecommender | 3秒 | 256MB | $0.13 |
-| WeatherAPIFetcher | 3秒 | 256MB | $0.13 |
-| CalendarFetcher | 3秒 | 256MB | $0.13 |
-| **合計** | - | - | **$0.87** |
+| bedrock_tester | 2秒 | 128MB | $0.04 |
+| db_tester | 3秒 | 128MB | $0.06 |
+| s3_tester | 5秒 | 128MB | $0.10 |
+| weather_api_fetcher | 2秒 | 128MB | $0.04 |
+| calendar_fetcher | 2秒 | 128MB | $0.04 |
+| coordinate_recommender | 3秒 | 128MB | $0.06 |
+| full_coordinator | 5秒 | 128MB | $0.10 |
+| **合計** | - | - | **$0.44** |
 
 ※ Bedrock料金は別途（$0.003/1000入力トークン、$0.015/1000出力トークン）

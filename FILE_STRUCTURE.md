@@ -4,11 +4,9 @@
 
 ```
 FUREAI/
-├── config/          # 設定ファイル
 ├── docs/            # ドキュメント
 ├── iam/             # IAMポリシー
 ├── lambda/          # Lambda関数コード
-├── scripts/         # セットアップスクリプト
 └── web/             # Webフロントエンド
 ```
 
@@ -46,6 +44,7 @@ FUREAI/
 | `dynamodb-design.md` | DynamoDB設計 | 開発者 |
 | `s3-design.md` | S3設計 | 開発者 |
 | `bedrock-design.md` | Bedrock設計 | 開発者 |
+| **`LAMBDA_SETUP.md`** | **Lambda関数作成手順** | **開発者** |
 
 #### 📂 docs/procedures/ - 手順書
 | ファイル | 説明 | 難易度 |
@@ -73,25 +72,22 @@ FUREAI/
 ### 📂 iam/ - IAMポリシー
 | ファイル | 説明 | 用途 |
 |---------|------|------|
-| `lambda-execution-policy.json` | Lambda実行ポリシー | Lambda IAMロール設定 |
+| `bedrock-tester-policy.json` | Bedrock疎通テスト用 | bedrock_tester Lambda |
+| `db-tester-policy.json` | DB疎通テスト用 | db_tester Lambda |
+| `s3-tester-policy.json` | S3疎通テスト用 | s3_tester Lambda |
+| `weather-fetcher-policy.json` | 天気API用 | weather_api_fetcher Lambda |
+| `calendar-fetcher-policy.json` | カレンダーAPI用 | calendar_fetcher Lambda |
+| `coordinate-recommender-policy.json` | コーデ提案用 | coordinate_recommender Lambda |
+| `full-coordinator-policy.json` | 全体統合用 | full_coordinator Lambda |
+| **`POLICY_GUIDE.md`** | **IAMポリシーガイド** | **全Lambda関数の権限説明** |
 
 ---
 
 ### 📂 lambda/ - Lambda関数
 | ファイル | 説明 | 機能 |
 |---------|------|------|
-| `coordinate_recommender.py` | コーディネート推薦Lambda | AI提案のメイン処理 |
-| `external_api_fetcher.py` | 外部API取得Lambda | 天気API連携（将来用） |
+| `bedrock_tester.py` | Bedrock疎通テスト | Bedrock API確認 |
 | `README.md` | Lambda説明 | 関数の使い方 |
-
----
-
-### 📂 scripts/ - セットアップスクリプト
-| ファイル | 説明 | 実行タイミング |
-|---------|------|--------------|
-| `setup_all.sh` | 一括セットアップ | 初回構築時 |
-| `verify_image_registration.sh` | 画像登録確認 | 画像登録後 |
-| `README.md` | スクリプト説明 | - |
 
 ---
 
