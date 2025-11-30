@@ -29,6 +29,11 @@ FUREAI/
 | `lambda-design.md` | Lambda関数設計 |
 | **`LAMBDA_SETUP.md`** | **Lambda関数作成手順** |
 
+### 📂 docs/
+| ファイル | 説明 |
+|---------|------|
+| **`LAMBDA_IMPLEMENTATION_CHECKLIST.md`** | **各関数の実装チェックリスト** |
+
 ---
 
 ### 📂 iam/ - IAMポリシー
