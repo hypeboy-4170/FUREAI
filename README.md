@@ -19,20 +19,12 @@ FUREAIは、AWS Lambda + Bedrock + DynamoDBを使用したAIコーディネー�
 | Lambda関数 | 状態 | 説明 |
 |-----------|------|------|
 | bedrock_tester | ✅ 実装済み | Bedrock疎通テスト |
-<<<<<<< HEAD
-| db_tester | 📐 設計のみ | DBデータでコーデ提案 |
-| s3_tester | 📐 設計のみ | 画像→分析→DB→提案 |
-| weather_api_fetcher | 📐 設計のみ | 天気API（モック） |
-| calendar_fetcher | 📐 設計のみ | 予定API（モック） |
-| full_coordinator | 📐 設計のみ | 全体統合 |
-=======
 | db_tester | 📝 設計済み | DB疎通テスト |
 | s3_tester | 📝 設計済み | S3疎通テスト |
 | weather_api_fetcher | 📝 設計済み | 天気API疎通テスト |
 | calendar_fetcher | 📝 設計済み | 予定API疎通テスト |
 | coordinate_recommender | 📝 設計済み | コーディネート提案 |
 | full_coordinator | 📝 設計済み | 全体統合テスト |
->>>>>>> 45237a452d66376f5e8cdfe76fc4f801cc781eaa
 
 ---
 
@@ -114,9 +106,6 @@ AWSコンソール → Lambda → 各関数:
 ### 🔧 手動作成（AWSコンソール）
 
 #### 1. Lambda関数の作成
-=======
-### 1. Lambda関数の作成
->>>>>>> 45237a452d66376f5e8cdfe76fc4f801cc781eaa
 
 各Lambda関数をAWSコンソールで作成してください。
 
