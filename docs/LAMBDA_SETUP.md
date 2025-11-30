@@ -26,22 +26,14 @@
    - **メモリ**: 128 MB (デフォルトでOK)
 3. 「保存」
 
-## 4. 環境変数
-
-1. 「設定」→「環境変数」→「編集」
-2. 必要に応じて追加:
-   - `MODEL_ID`: `jp.anthropic.claude-sonnet-4-5-20250929-v1:0`
-   - `CLOTHING_TABLE`: `ClothingItems`
-3. 「保存」
-
-## 5. IAM権限
+## 4. IAM権限
 
 1. 「設定」→「アクセス権限」
 2. 実行ロール名をクリック
 3. 「許可を追加」→「ポリシーをアタッチ」
 4. 対応するポリシーをアタッチ (iam/フォルダ参照)
 
-## 6. 関数URL作成
+## 5. 関数URL作成
 
 1. 「設定」→「関数URL」→「関数URLを作成」
 2. 設定:
@@ -54,7 +46,7 @@
 3. 「保存」
 4. 発行されたURLをコピー → `web/config.js` に貼り付け
 
-## 7. テスト
+## 6. テスト
 
 1. `web/index.html` をブラウザで開く
 2. 対応するテストボタンをクリック
@@ -62,15 +54,15 @@
 
 ## 各関数の設定まとめ
 
-| 関数名 | タイムアウト | 環境変数 | IAMポリシー |
-|--------|------------|---------|------------|
-| bedrock-tester | 30秒 | MODEL_ID | bedrock-tester-policy.json |
-| db-tester | 30秒 | MODEL_ID, CLOTHING_TABLE | db-tester-policy.json |
-| s3-tester | 30秒 | MODEL_ID, CLOTHING_TABLE, BUCKET_NAME | s3-tester-policy.json |
-| weather-fetcher | 10秒 | なし | weather-fetcher-policy.json |
-| calendar-fetcher | 10秒 | なし | calendar-fetcher-policy.json |
-| coordinate-recommender | 30秒 | MODEL_ID, CLOTHING_TABLE | coordinate-recommender-policy.json |
-| full-coordinator | 30秒 | MODEL_ID, CLOTHING_TABLE, BUCKET_NAME | full-coordinator-policy.json |
+| 関数名 | タイムアウト | IAMポリシー |
+|--------|------------|------------|
+| bedrock-tester | 30秒 | bedrock-tester-policy.json |
+| db-tester | 30秒 | db-tester-policy.json |
+| s3-tester | 30秒 | s3-tester-policy.json |
+| weather-fetcher | 30秒 | weather-fetcher-policy.json |
+| calendar-fetcher | 30秒 | calendar-fetcher-policy.json |
+| coordinate-recommender | 30秒 | coordinate-recommender-policy.json |
+| full-coordinator | 30秒 | full-coordinator-policy.json |
 
 ## トラブルシューティング
 
