@@ -95,6 +95,8 @@ FUREAI/
 | ファイル | 説明 | 用途 |
 |---------|------|------|
 | `index.html` | Webアプリ | ユーザーインターフェース |
+| `config.js` | Lambda関数URL設定 | 関数URLを設定 |
+| **`TESTING_GUIDE.md`** | **Web UIテスト手順** | **テスト方法説明** |
 
 ---
 
