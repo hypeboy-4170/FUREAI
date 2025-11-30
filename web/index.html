@@ -40,7 +40,7 @@
         <p style="color: #666; margin-bottom: 20px;">AIがあなたの予定と天気に合わせて、最適なコーディネートを提案します</p>
         
         <div class="note">
-            <strong>設定:</strong> config.jsにLambda関数URLを設定してください
+            <strong>設定:</strong> config.js の値にLambda関数URLを設定してください
         </div>
         
         <!-- 単体テスト -->
@@ -161,23 +161,53 @@
                 const data = await response.json();
                 const result = typeof data.body === 'string' ? JSON.parse(data.body) : data;
                 
-                let itemsHtml = result.dbItems.map(item => 
+                // clothing_data または dbItems を取得
+                const items = result.dbItems || result.clothing_data;
+                
+                if (!items || !Array.isArray(items)) {
+                    throw new Error('DBアイテムが取得できませんでした: ' + JSON.stringify(result));
+                }
+                
+                let itemsHtml = items.map(item => 
                     `<div style="padding: 5px; background: white; margin: 5px 0; border-radius: 3px;">
-                        ${item.itemId}: ${item.category} / ${item.color} / ${item.season} / ${item.formality}
+                        ${item.itemId || item.itemName}: ${item.category} / ${item.color} / ${item.season || item.warmth || 'all'} / ${item.formality || item.style || 'casual'}
                     </div>`
                 ).join('');
                 
-                showResult(`
+                let html = `
                     <div class="comment">
-                        <strong>✅ DBテスト成功</strong><br><br>
-                        <strong>💾 DBアイテム (${result.dbItems.length}件):</strong><br>
+                        <strong>✅ DB疎通テスト結果</strong>
+                    </div>
+                    <div class="item">
+                        <div class="item-title">✅ 1. DBデータ取得成功</div>
+                        <div class="item-reason">${items.length}件のアイテムを取得</div>
+                    </div>
+                    <div class="comment">
+                        <strong>💾 取得したアイテム:</strong><br>
                         ${itemsHtml}
                     </div>
-                    <div class="comment">
-                        <strong>🤖 AIコーデ提案:</strong><br><br>
-                        ${result.recommendation.replace(/\n/g, '<br>')}
-                    </div>
-                `);
+                `;
+                
+                if (result.recommendation) {
+                    html += `
+                        <div class="item">
+                            <div class="item-title">✅ 2. AIコーデ提案成功</div>
+                        </div>
+                        <div class="comment">
+                            <strong>🤖 AI提案:</strong><br><br>
+                            ${result.recommendation.replace(/\n/g, '<br>')}
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="item" style="border-left-color: #ffc107; background: #fff3cd;">
+                            <div class="item-title" style="color: #856404;">⚠️ 2. AIコーデ提案未実装</div>
+                            <div class="item-reason" style="color: #856404;">現在はDBデータ取得まで確認できました</div>
+                        </div>
+                    `;
+                }
+                
+                showResult(html);
             } catch (error) {
                 showError(error.message);
             }
@@ -229,7 +259,7 @@
                     </div>
                     <div class="comment">
                         <strong>🤖 4. AIコーデ提案:</strong><br><br>
-                        ${result.recommendation.replace(/\n/g, '<br>')}
+                        ${(result.recommendation || '提案が生成されませんでした').replace(/\n/g, '<br>')}
                     </div>
                 `);
             } catch (error) {
